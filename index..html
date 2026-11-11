@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verdad o Apariencia</title>
+<style>
+* {box-sizing:border-box}
+body {
+  margin:0;
+  padding:25px 15px;
+  background:#11182d;
+  color:white;
+  font-family:Arial,sans-serif;
+}
+header {text-align:center;margin-bottom:25px}
+h1 {color:#f3ca68;margin-bottom:8px}
+header p {color:#c4cce0}
+main {
+  max-width:1050px;
+  margin:auto;
+  background:#202b48;
+  padding:22px;
+  border-radius:18px;
+}
+.columns {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+h2 {text-align:center;color:#f3ca68}
+.item {
+  background:#303e60;
+  padding:14px;
+  margin:10px 0;
+  border-radius:10px;
+  border:2px solid transparent;
+  cursor:pointer;
+  text-align:left;
+  width:100%;
+  color:white;
+  font-size:15px;
+  min-height:65px;
+}
+.item:hover {background:#405174}
+.item.selected {border-color:#f3ca68}
+.item.correct {
+  background:#176447;
+  border-color:#51d6a0;
+  cursor:default;
+}
+.item.wrong {border-color:#ff7777}
+.item:disabled {opacity:1}
+#message {
+  text-align:center;
+  font-size:18px;
+  font-weight:bold;
+  margin:20px 0;
+  min-height:25px;
+}
+.score {
+  text-align:center;
+  font-size:20px;
+  margin:20px;
+}
+.controls {text-align:center}
+.controls button {
+  padding:13px 22px;
+  border:0;
+  border-radius:10px;
+  margin:6px;
+  cursor:pointer;
+  font-weight:bold;
+  font-size:15px;
+}
+#check {background:#f3ca68;color:#18213a}
+#reset {background:#637494;color:white}
+#check:disabled {opacity:.5;cursor:not-allowed}
+@media(max-width:650px) {
+  .columns {grid-template-columns:1fr}
+  main {padding:12px}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>¿VERDAD O APARIENCIA?</h1>
+  <p>Juego de relacionar columnas | Eje 2: Conocimiento y verdad</p>
+  <p>Pareja 5 | Fausto Unterthurner y Matías Murua</p>
+</header>
+
+<main>
+  <div class="score">
+    🏆 Puntaje: <span id="score">0</span> / 12
+  </div>
+
+  <div class="columns">
+    <section>
+      <h2>📚 COLUMNA A</h2>
+      <div id="left"></div>
+    </section>
+
+    <section>
+      <h2>🧠 COLUMNA B</h2>
+      <div id="right"></div>
+    </section>
+  </div>
+
+  <div id="message">Seleccioná un concepto y luego su definición.</div>
+
+  <div class="controls">
+    <button id="check" onclick="checkAnswer()" disabled>
+      COMPROBAR RESPUESTA
+    </button>
+    <button id="reset" onclick="startGame()">
+      VOLVER A JUGAR
+    </button>
+  </div>
+</main>
+
+<script>
+const concepts = [
+  ["Platón","Filósofo que desarrolló la teoría de las Ideas y la alegoría de la caverna."],
+  ["Descartes","Sostiene que debemos cuestionar nuestras creencias para encontrar una certeza segura."],
+  ["Nietzsche","Filósofo que cuestionó las verdades absolutas y los valores tradicionales."],
+  ["Foucault","Estudió cómo se relacionan el poder y el conocimiento."],
+  ["Conocimiento","Comprensión fundamentada que obtenemos mediante el estudio y la reflexión."],
+  ["Opinión","Interpretación personal que no necesariamente está comprobada."],
+  ["Verdad","Aquello que consideramos verdadero o que corresponde con la realidad."],
+  ["Pensamiento crítico","Capacidad de analizar, cuestionar y evaluar la información."],
+  ["Mundo sensible","Mundo que percibimos mediante los sentidos y que está sujeto al cambio."],
+  ["Mundo de las ideas","Mundo de las realidades perfectas, eternas e inmutables."],
+  ["Duda metódica","Método de Descartes que consiste en poner en duda las creencias."],
+  ["Perspectivismo","Plantea que el conocimiento depende de una perspectiva o punto de vista."]
+];
+
+let selectedLeft = null;
+let selectedRight = null;
+let matched = new Set();
+let score = 0;
+let locked = false;
+
+const left = document.getElementById("left");
+const right = document.getElementById("right");
+const message = document.getElementById("message");
+
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+
+function startGame() {
+  selectedLeft = null;
+  selectedRight = null;
+  matched.clear();
+  score = 0;
+  locked = false;
+
+  document.getElementById("score").textContent = score;
+  document.getElementById("check").disabled = true;
+  message.textContent = "Seleccioná un concepto y luego su definición.";
+
+  left.innerHTML = "";
+  right.innerHTML = "";
+
+  shuffle(concepts.map((item,i)=>i)).forEach(index => {
+    const button = document.createElement("button");
+    button.className = "item";
+    button.textContent = (index+1)+". "+concepts[index][0];
+    button.onclick = () => selectLeft(index,button);
+    left.appendChild(button);
+  });
+
+  shuffle(concepts.map((item,i)=>i)).forEach(index => {
+    const button = document.createElement("button");
+    button.className = "item";
+    button.textContent = String.fromCharCode(65+index)+". "+concepts[index][1];
+    button.onclick = () => selectRight(index,button);
+    button.dataset.index = index;
+    right.appendChild(button);
+  });
+}
+
+function selectLeft(index,button) {
+  if (locked || matched.has(index)) return;
+  selectedLeft = index;
+  document.querySelectorAll("#left .item").forEach(b=>b.classList.remove("selected"));
+  button.classList.add("selected");
+  updateButton();
+}
+
+function selectRight(index,button) {
+  if (locked || matched.has(index)) return;
+  selectedRight = index;
+  document.querySelectorAll("#right .item").forEach(b=>b.classList.remove("selected"));
+  button.classList.add("selected");
+  updateButton();
+}
+
+function updateButton() {
+  document.getElementById("check").disabled =
+    selectedLeft === null || selectedRight === null;
+}
+
+function checkAnswer() {
+  if (selectedLeft === null || selectedRight === null || locked) return;
+
+  locked = true;
+
+  const leftButton = [...left.children].find(b =>
+    b.textContent.startsWith((selectedLeft+1)+".")
+  );
+
+  const rightButton = [...right.children].find(b =>
+    Number(b.dataset.index) === selectedRight
+  );
+
+  if (selectedLeft === selectedRight) {
+    matched.add(selectedLeft);
+    score++;
+    leftButton.classList.add("correct");
+    rightButton.classList.add("correct");
+    leftButton.disabled = true;
+    rightButton.disabled = true;
+    message.textContent = "¡CORRECTO! ¡Muy bien! 🎉";
+    document.getElementById("score").textContent = score;
+  } else {
+    leftButton.classList.add("wrong");
+    rightButton.classList.add("wrong");
+    message.textContent = "¡No coinciden! Intentá nuevamente.";
+  }
+
+  document.getElementById("check").disabled = true;
+
+  setTimeout(() => {
+    leftButton.classList.remove("selected","wrong");
+    rightButton.classList.remove("selected","wrong");
+    selectedLeft = null;
+    selectedRight = null;
+    locked = false;
+
+    if (matched.size === concepts.length) {
+      message.textContent = "🏆 ¡FELICITACIONES! Completaste todas las parejas.";
+    } else if (matched.size < concepts.length) {
+      if (score === matched.size && score > 0 &&
+          message.textContent.includes("CORRECTO")) {
+        message.textContent = "¡Seguimos! Seleccioná la siguiente pareja.";
+      }
+    }
+  },1000);
+}
+
+startGame();
+</script>
+</body>
+</html>
